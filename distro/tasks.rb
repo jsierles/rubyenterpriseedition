@@ -4,6 +4,18 @@ VENDOR_RUBY_VERSION = begin
 	data =~ /RUBY_VERSION "(.*)"/
 	$1
 end
+
+raw_arch = `uname -m`.strip
+
+ARCH = case raw_arch
+  when /^i.86$/
+  "i386"
+  when /^x86_64/
+  "amd64"
+  else
+  raw_arch
+end
+
 DISTDIR = "ruby-enterprise-#{VENDOR_RUBY_VERSION}-#{REE_VERSION}"
 RUBYGEMS_URL = "http://rubyforge.org/frs/download.php/45905/rubygems-1.3.1.tgz"
 RUBYGEMS_PACKAGE = RUBYGEMS_URL.sub(/.*\//, '')
@@ -36,16 +48,19 @@ task :fakeroot do
 	sh "mkdir fakeroot"
 	fakeroot = File.expand_path("fakeroot")
 	sh "#{distdir}/installer --auto='/opt/ruby-enterprise' --destdir='#{fakeroot}' #{ENV['ARGS']}"
-	each_elf_binary(fakeroot) do |filename|
-		sh "strip --strip-debug '#{filename}'"
-	end
+	if ENV["STRIP_DEBUG"]
+  	each_elf_binary(fakeroot) do |filename|
+  		sh "strip --strip-debug '#{filename}'"
+  	end
+  end
 	puts "*** Ruby Enterprise Edition has been installed to #{fakeroot}"
 end
 
 desc "Create a Debian package."
 task 'package:debian' => :fakeroot do
-	sh "cp -R distro/debian fakeroot/DEBIAN"
-	sh "fakeroot dpkg -b fakeroot ruby-enterprise_#{VENDOR_RUBY_VERSION}-#{REE_VERSION}_i386.deb"
+  output = ERB.new(File.join(File.dirname(__FILE__), "templates", "debian_control.erb")).result(binding)
+	File.open(File.join(File.dirname(__FILE__), "..", "fakeroot", "DEBIAN")) {|f| f.write(output)} 
+	sh "fakeroot dpkg -b fakeroot ruby-enterprise_#{VENDOR_RUBY_VERSION}-#{REE_VERSION}_#{ARCH}.deb"
 end
 
 # Check whether the specified command is in $PATH, and return its
