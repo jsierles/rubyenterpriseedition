@@ -46,14 +46,15 @@ class Installer
 		  :install_ruby,
 		  :install_ree_specific_binaries,
 		  :install_rubygems,
-		  :install_iconv
+		  :install_iconv,
+		  :install_shadow
 		]
 		steps.each do |step|
 			if !self.send(step)
 				exit 1
 			end
 		end
-		install_useful_libraries
+		#install_useful_libraries
 		show_finalization_screen
 	ensure
 		reset_terminal_colors
@@ -283,6 +284,24 @@ private
 		# On some systems, most notably FreeBSD, the iconv extension isn't
 		# correctly installed. So here we do it manually.
 		Dir.chdir('source/ext/iconv') do
+			# 'make clean' must be run, because sometimes 'make'
+			# thinks iconv.so is already compiled even though it
+			# isn't.
+			if !sh("#{@destdir}#{@prefix}/bin/ruby", "extconf.rb") ||
+			   !sh("make clean") ||
+			   !sh("make") ||
+			   # For some reason DESTDIR is not necessary here;
+			   # not sure why.
+			   !sh("make install")
+				puts "*** Cannot install the iconv extension"
+				return false
+			end
+		end
+		return true
+	end
+
+	def install_shadow
+		Dir.chdir('source/ext/shadow') do
 			# 'make clean' must be run, because sometimes 'make'
 			# thinks iconv.so is already compiled even though it
 			# isn't.
