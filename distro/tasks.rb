@@ -1,3 +1,5 @@
+require 'erb'
+
 REE_VERSION = "20090201"
 VENDOR_RUBY_VERSION = begin
 	data = File.read("version.h")
@@ -60,8 +62,11 @@ end
 
 desc "Create a Debian package."
 task 'package:debian' => :fakeroot do
-  output = ERB.new(File.join(File.dirname(__FILE__), "templates", "debian_control.erb")).result(binding)
-	File.open(File.join(File.dirname(__FILE__), "..", "fakeroot", "DEBIAN")) {|f| f.write(output) } 
+#task 'package:debian' do
+        sh "cp -R distro/debian fakeroot/DEBIAN"
+
+        output = ERB.new(File.read(File.join(File.dirname(__FILE__), "templates", "debian_control.erb"))).result(binding)
+	File.open(File.join(File.dirname(__FILE__), "..", "fakeroot", "DEBIAN", "control"), "w") {|f| f.write(output) } 
 	sh "fakeroot dpkg -b fakeroot ruby-enterprise_#{VENDOR_RUBY_VERSION}-#{REE_VERSION}_#{ARCH}.deb"
 end
 
